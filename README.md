@@ -61,7 +61,7 @@
   # 修改root密码
   set password='root'
   # 设置权限允许远程登录
-  grant all privileges on *.* to 'root'@'%' identified by 'root';
+  grant all privileges on *.* to 'root'@'%' identified by 'root' WITH GRANT OPTION;
   # 权限生效
   flush privileges;
   # 查看防火墙状态centos7及以上
@@ -72,11 +72,69 @@
 
 - ##### 多实例安装过程
 
-  ```
-  odoOCvSrc8;a
+  - ##### 创建配置文件/etc/my.cnf
   
-  Jq(po(7*hppf
-  ```
+    ```shell
+    [mysqld]
+    sql_mode = "STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER"
+    
+    [mysqld_multi]
+    mysqld = /usr/local/mysql/bin/mysqld_safe
+    mysqladmin = /usr/local/mysql/bin/mysqladmin
+    log = /var/log/mysqld_multi.log
+    user=root
+    pass=root
+    
+    [mysqld1] 
+    server-id = 11
+    socket = /tmp/mysql.sock1
+    port = 3307
+    datadir = /data1
+    user = mysql
+    performance_schema = off
+    innodb_buffer_pool_size = 32M
+    skip_name_resolve = 1
+    log_error = error.log
+    pid-file = /data1/mysql.pid1
+    [mysqld2]
+    server-id = 12
+    socket = /tmp/mysql.sock2
+    port = 3308
+    datadir = /data2
+    user = mysql
+    performance_schema = off
+    innodb_buffer_pool_size = 32M
+    skip_name_resolve = 1
+    log_error = error.log
+    pid-file = /data2/mysql.pid2
+    ```
+  
+  - ##### 安装过程
+  
+    ```shell
+    # 创建数据文件夹data1/data2
+    mkdir /data1
+    mkdir /data2
+    # 改变文件夹data1/data2的拥有者
+    chown mysql.mysql /data{1..2}
+    # 配置开机启动
+    cp /usr/local/mysql/support-files/mysqld_multi.server /etc/init.d/mysqld_multid
+    
+    chkconfig mysqld_multid on
+    # 查看状态
+    mysqld_multi report
+    # 安装perl环境
+    yum -y install perl perl-devel
+    # 启动多实例
+    mysqld_multi start
+    # 登录并修改密码，允许远程链接
+    mysql -u root -S /tmp/mysql.sock1 -p -P3307 
+    mysql -u root -S /tmp/mysql.sock2 -p -P3308
+    
+    set password = 'root1234%';
+    GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY 'root' with grant option;
+    flush privileges; 
+    ```
 
 ##### 权限
 
