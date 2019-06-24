@@ -686,3 +686,340 @@ show variables like '%storage_engine%';
   - 使用场景
 
     偶尔的统计分析及手工查询（某些游戏行业）
+
+##### 锁
+
+- ##### 锁的简介
+
+  - ##### 锁的概念
+
+    锁是计算机协调多个进程或线程并发访问某一资源的机制。
+
+    在数据库中，数据也是一种供许多用户共享的资源。如何保证数据并发访问的一致性、有效性是所有数据库必须解决的一个问题，锁冲突也是影响数据库并发访问性能的一个重要因素。
+
+    锁对数据库而言显得尤其重要，也更加复杂。
+
+  - ##### Mysql中的锁
+
+    - 表级锁：开销小，加锁快；不会出现死锁；锁定粒度大，发生锁冲突的概率最高，并发度最低。
+    - 行级锁：开销大，加锁慢；会出现死锁；锁定粒度最小，发生锁冲突的概率最低，并发度也最高。
+    - 页面锁（gap锁，间隙锁）：开锁和加锁时间界于表锁和行锁之间；会出现死锁；锁定粒度界于表锁和行锁之间，并发度一般。
+
+  - ##### 表锁与行锁的使用场景
+
+    表级锁更适合于以查询为主，只要少量按索引条件更新数据的应用，如OLAP系统（在线分析处理）；
+
+    行级锁则更适合于有大量按索引条件并发更新少量不同数据，同事又有并发查询的应用，如OLTP系统（在线事务处理）
+
+- ##### MyISAM锁
+
+  MySQL的表级锁有两种模式：
+
+  表共享读锁（Table Read Lock）
+
+  表独占写锁（Table Write Lock）
+
+  ![1561102488417](.\images\表共享锁和独占锁.png)
+
+  - 共享读锁
+
+    **语法**：lock table 表名 read
+
+    ```mysql
+    -- 以下实验在5.7中不能成功，在5.6中可以成功
+    -- 对表testmysqm进行共享读锁
+    lock table testmysam read;
+    
+    -- 在同一session中可以查询；在另一个session中可以查询
+    select * from testmysam;-- success
+    
+    -- 在同一session中会报错；在另一个session中处于等待wait状态
+    insert into testmysam value (4); -- error 
+    update testmysam set id = 5 where id = 1; -- error 
+    
+    -- 在同一session中会报错；在另一个session中成功success
+    insert into account value(4,'aa',123); -- error 
+    select  * from account  ; -- error 
+    select s.* from testmysam s; -- error 
+    ```
+
+  - 独占写锁
+
+    ```mysql
+    -- 对表testmysam进行设置写锁
+    lock table testmysam WRITE;
+    
+    -- 同一session中可以成功；另一个session中等待wait
+    insert testmysam value(4);
+    delete from testmysam where id = 3;
+    select * from testmysam;
+    
+    -- 同一session中对不同的表报错
+    select s.* from  testmysam s;
+    insert into account value(4,'aa',123);
+    ```
+
+  - ##### 总结
+
+    - 读锁，对MyISAM表的读操作，不会阻塞其他用户对同一表的读请求，但会阻塞对同一表的写请求
+    - 读锁，对MyISAM表的读操作，不会阻塞当前session对表读，当对表进行修改会报错
+    - 读锁，一个session使用lock table命令给表加了读锁，这个session可以查询锁定表中的记录，但更新或访问其他表都会提示错误；
+    - 写锁，对MyISAM表的写操作，则会阻塞其他用户对同一表的读和写操作
+    - 写锁，对MyISAM表的写操作，当前session可以对本表做CRUD，但对其他表进行操作会报错
+
+- ##### InnoDB锁
+
+  在mysql的InnoDB引擎支持行锁
+
+  共享锁：读锁，当一个事务对某几行上读锁时，允许其他事务对这几行进行读操作，但不允许其进行写操作，也不允许其他事务给这几行上排它锁，但允许上读锁。
+
+  排它锁：写锁，当一个事务对某几行上写锁时，不允许其他事务写，但允许读。更不允许其他事务给这几行上任何锁，包括写锁。
+
+  - 语法
+
+    ```mysql
+    -- 共享锁语法
+    lock in share mode
+    select * from account where id = 1 lock in share mode;
+    -- 排它锁语法
+    for update
+    select * from account where id = 2 for update;
+    ```
+
+  - 注意事项
+
+    - 两个事务不能锁同一个索引
+
+    - insert、delete、update在事务中都会自动默认加上排它锁
+
+    - 行锁必须有索引才能实现，否则会自动锁全表，那么就不是行锁了
+
+      ```mysql
+      -- 创建表并插入数据
+      CREATE TABLE testdemo (
+      `id`  int(255) NOT NULL ,
+      `c1`  varchar(300) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL ,
+      `c2`  int(50) NULL DEFAULT NULL ,
+      PRIMARY KEY (`id`),
+      INDEX `idx_c2` (`c2`) USING BTREE 
+      )
+      ENGINE=InnoDB;
+      
+      insert into testdemo VALUES(1,'1',1),(2,'2',2);
+      
+      -- 开启写锁
+      begin；
+      select * from testdemo where id =1 for update;
+      -- 在另外一个session
+      update testdemo set c1 = '1' where id = 2; -- success
+      update testdemo set c1 = '1' where id = 1; -- wait
+      -- 在第一个session中执行以下任一命令，wait--》success
+      commit;
+      rollback;
+      
+      
+      -- insert、delete、update在事务中都会自动默认加上排它锁
+      BEGIN;
+      update testdemo set c1 = '1' where id = 1;
+      -- 在另外一个session中
+      update testdemo set c1 = '1' where id = 1; -- wait
+      
+      
+      -- 行锁必须有索引才能实现，否则会自动锁全表
+      BEGIN;
+      update testdemo set c1 = '1' where  c1 = '1';
+      -- 在另外一个session中
+      update testdemo set c1 = '2' where  c1 = '2';
+      
+      
+      -- 在一个session中
+      select * from testdemo where id = 1 for update;
+      -- 第二个session中
+      select * from testdemo where id = 1 lock in share mode; -- wait
+      -- 回到第一个session中使用unlock tables不能解锁，可以使用commit,begin,rollback进行解锁
+      
+      -- 表锁
+      lock table testdemo WRITE;
+      -- 使用commit，rollback不能解锁，只能使用unlock tables，begin才能解锁
+      ```
+
+- ##### 锁的等待问题
+
+  ```mysql
+  -- 在第一个session中
+  BEGIN;
+  SELECT * FROM testdemo WHERE id = 1 FOR UPDATE;
+  -- 在第二个session中
+  BEGIN;
+  SELECT * FROM testdemo WHERE id = 1 lock in share mode;-- wait
+  
+  -- 在这种情况下可以通过以下sql查看是那条数据被锁住了
+  select * from information_schema.INNODB_LOCKS;
+  -- 同一个数据有两个锁，X（写锁），S（读锁）
+  -- 解决方法
+  -- 5.7及以上版本
+  select * from sys.innodb_lock_waits; -- 记录中有一个字段sql_kill_blocking_connection,获取他的值a，然后有以下命令杀死这个锁
+  kill a;
+  -- 5.6及之前版本
+  SELECT
+    r.trx_id waiting_trx_id,
+    r.trx_mysql_thread_id waiting_thread,
+    r.trx_query waiting_query,
+    b.trx_id blocking_trx_id,
+    b.trx_mysql_thread_id blocking_thread
+  FROM
+    information_schema.innodb_lock_waits w
+  INNER JOIN
+    information_schema.innodb_trx b ON b.trx_id = w.blocking_trx_id
+  INNER JOIN
+    information_schema.innodb_trx r ON r.trx_id = w.requesting_trx_id;
+    
+  -- 获取blocking_thread的值b，使用以下命令杀死锁
+  kill b;
+  ```
+
+##### 事务
+
+- ##### 支持事务的存储引擎
+
+  ```mysql
+  -- 查看数据库下面是否支持事务（InnoDB支持）
+  show engines；
+  
+  -- 查看mysql当前默认存储引擎
+  show variables like '%storage_engine%';
+  
+  -- 查看某张表的存储引擎
+  show create table 表名;
+  
+  -- 对于表的存储结构修改
+  create table table_name ...... type=InnoDB;
+  alter table table_name type=InnoDB;
+  ```
+
+- ##### 事务特性
+
+  事务具有4个属性：原子性、一致性、隔离性、持久性，称为ACID
+
+  - ##### 原子性（atomicity）
+
+    一个事务必须被视为一个不可分割的最小单元，整个事务中的所有操作要么全部提交成功，要么全部失败，对于一个事务来说，不可能只执行其中的一部分操作。
+
+  - ##### 一致性（consistency）
+
+    一致性是指事务将数据库从一种一致性转换到另外一种一致性状态，在事务开始之前和事务结束之后数据库中的完整性没有被破坏。
+
+  - ##### 隔离性（isolation）
+
+    一个事务的执行不能被其他事务干扰。即一个事务内部的操作及使用的数据对并发的其他事务是隔离的，并发执行的各个事务之间不能互相干扰。（对数据库的并行执行，应该像串行执行一样）
+
+  - ##### 持久性（durability）
+
+    一旦事务提交，则其所做的修改就会永久保存到数据库中。此时即使系统崩溃，已提交的修改数据也不会丢失。
+
+- ##### 事务的隔离级别
+
+  **mysql默认的事务隔离级别为：REPEATABLE-READ**
+
+  ```mysql
+  show variables like '%tx_isolation%';
+  ```
+
+  - ##### 未提交读（READ UNCOMMITED）脏读
+
+    ```mysql
+    -- 设置事务隔离级别（分别在第一个和第二个session中）
+    set session transaction isolation level read uncommitted;
+    -- 开启事务（分别在第一个和第二个session中）
+    start transaction;
+    -- 在第一个session中执行以下操作 原始值balance = 900
+    update account set balance = balance -50 where id = 1;
+    select * from account;-- balance = 850
+    -- 在第二个session中执行
+    select * from account;-- balance = 850
+    -- 在第一个session中执行
+    rollback；
+    -- 在第二个session中执行
+    select * from account;-- balance = 900 
+    
+    -- 在第二个session中读取到了未提交的数据，这部分的数据为脏数据
+    ```
+
+  - ##### 已提交读（READ COMMITTED）不可重复读
+
+    ```mysql
+    -- 设置事务隔离级别
+    set session transaction isolation level read committed;
+    -- 开启事务
+    start transaction;
+    -- 在第一个session中执行以下操作 原始值balance=850
+    update account set balance = balance -50 where id = 1;
+    select * from account;-- balance = 800
+    -- 在第二个session中执行
+    select * from account;-- balance = 850
+    -- 在第一个session中执行
+    commit；
+    -- 在第二个session中执行
+    select * from account;-- balance = 800 
+    
+    -- 不可重复读解决了脏读问题
+    ```
+
+  - ##### 可重复读（REPEATED READ）
+
+    ```mysql
+    -- 设置事务隔离级别
+    set session transaction isolation level repeatable read;
+    -- 开启事务
+    start transaction;
+    -- 在第一个session中执行以下操作 原始值balance=750
+    update account set balance = balance -50 where id = 1;
+    select * from account;-- balance = 700
+    -- 在第二个session中执行
+    select * from account;-- balance = 750
+    -- 在第一个session中执行
+    commit；
+    -- 在第二个session中执行
+    select * from account;-- balance = 750 
+    -- 在第二个session中执行
+    commit;
+    -- 在第二个session中执行
+    select * from account; -- balance  = 700
+    
+    -- 可重复读解决了不可重复读，在mysql数据库中解决了幻读（其他数据库中为解决幻读）
+    ```
+
+  - ##### 可串行化（SERIALIZABLE）
+
+    ```mysql
+    -- 设置事务隔离级别
+    set session transaction isolation level serializable;
+    -- 开启事务
+    begin;
+    -- 在第一个session中执行
+    select * from account; -- 5条数据
+    -- 在第二个session中执行
+    select * from account; -- 5条数据
+    -- 在第二个session中执行
+    insert into account  values (6,'ert','600');-- wait
+    -- 在第一个session中执行
+    commit; -- 第二个session中wait的语句--》success
+    -- 在第一个session中执行
+    select * from account; -- 5条数据
+    -- 在第二个session中执行
+    commit;
+    -- 在第一个session中执行
+    select * from account; -- 6条数据
+    
+    -- 可串行化可解决幻读
+    ```
+
+- ##### 事务并发问题
+
+  - 脏读：事务A读取了事务B更新的数据，然后B回滚操作，那么A读取到的数据是脏数据。
+
+  - 不可重复读：事务A多次读取同一数据，事务B在事务A多次读取的过程中，对数据做了更新并提交，导致事务A多次读取同一数据时，结果不一致。
+
+  - 幻读：系统管理员A将数据库中所有学生的成绩从具体分数改为ABCDE等级，但是系统管理员B就在这个时候插入了一条具体分数的记录，当系统管理员A改结束后发现还有一条记录没有改过来，就好像发生了幻觉一样，这就是幻读。
+
+    **注意：不可重复读和幻读很容易混淆，不可重复读侧重于修改，幻读侧重于新增和删除。解决不可重复读的问题只需锁住满足条件的行，解决幻读需要锁表。**
