@@ -1013,6 +1013,62 @@ show variables like '%storage_engine%';
     
     -- 可串行化可解决幻读
     ```
+    
+  - ##### 间隙锁（gap锁）
+
+    在mysql中，可重复锁已经解决了幻读问题，借助的就是间隙锁
+    
+    ```mysql
+    -- 实例1
+    -- 查看事务隔离级别
+    select @@tx_isolation;
+    -- 创建表和插入数据
+    create table t_lock_1 (a int primary key);
+    insert into t_lock_1 values(10),(11),(13),(20),(40);
+    -- 查看数据
+    select * from t_lock_1;
+    -- 开启事务 在第一个session中
+    BEGIN;
+    -- 写锁 在第一个session中
+    select * from t_lock_1 where a<=13 for update; -- 10 11 13
+    -- 在第二个session中插入数据
+    insert into t_lock_1 values (21);-- success
+    insert into t_lock_1 values (19);-- wait
+    
+    -- 在repeated read隔离级别中会扫描到当前值（13）的下一个值（20），并把这些数据全部加锁
+    
+    
+    -- 实例2
+    -- 创建表和插入数据
+    create table t_lock_2 (a int primary key,b int, key (b));
+    insert into t_lock_2 values(1,1),(3,1),(5,3),(8,6),(10,8);
+    
+    select * from t_lock_2;
+    -- 开启事务 在第一个session中
+    BEGIN;
+    -- 添加写锁 在第一个session中
+    select * from t_lock_2 where b = 3 for update;
+    
+    -- 在第二个session中
+    select * from t_lock_2 where a = 5 lock in share mode;-- wait
+    
+    insert into t_lock_2 values (4,2); -- wait,b=2在（1，3）内
+    
+    insert into t_lock_2 values (6,5); -- wait,b=2在（3，6）内
+    
+    insert into t_lock_2 values (2,0); -- success
+    
+    insert into t_lock_2 values (6,7); -- success
+    
+    insert into t_lock_2 values (9,6); -- success
+    
+    insert into t_lock_2 values (7,6); -- wait
+    
+    -- 主键索引只锁住了a=5的这条记录
+    -- 二级索引所著的范围是（1，3），（3，6）
+    ```
+    
+    
 
 - ##### 事务并发问题
 
@@ -1023,3 +1079,37 @@ show variables like '%storage_engine%';
   - 幻读：系统管理员A将数据库中所有学生的成绩从具体分数改为ABCDE等级，但是系统管理员B就在这个时候插入了一条具体分数的记录，当系统管理员A改结束后发现还有一条记录没有改过来，就好像发生了幻觉一样，这就是幻读。
 
     **注意：不可重复读和幻读很容易混淆，不可重复读侧重于修改，幻读侧重于新增和删除。解决不可重复读的问题只需锁住满足条件的行，解决幻读需要锁表。**
+  
+- ##### 事务语法
+
+  ```mysql
+  -- 开启事务
+  begin;
+  start transaction;
+  begin work;
+  
+  -- 事务回滚
+  rollback;
+  
+  -- 事务提交
+  commit;
+  
+  -- 还原点
+  savepoint;-- 语法
+  show variables like '%autocommit%';-- 查看事务，默认为自动提交 ON
+  
+  set autocommit = 0;-- 设置事务不自动提交 OFF
+  
+  select * from testdemo;
+  
+  insert into testdemo values(5,5,5);
+  savepoint s1;-- 还原点s1
+  insert into testdemo values(6,6,6);
+  savepoint s2;-- 还原点s2
+  insert into testdemo values(7,7,7);
+  savepoint s3;-- 还原点s3
+  
+  rollback to savepoint s2; -- 将事务还原到还原点s2，（7，7，7）数据没有了
+  commit; -- 提交事务，提交事务之后，还原点就失效了
+  ```
+
