@@ -1113,3 +1113,167 @@ show variables like '%storage_engine%';
   commit; -- 提交事务，提交事务之后，还原点就失效了
   ```
 
+##### 逻辑设计
+
+- ##### 范式设计
+
+  - ##### 数据库设计第一范式：数据库表中的所有字段都只具有单一属性，单一属性的列是由基本数据类型所构成的。
+
+  - ##### 数据库设计第二范式：要求表中只具有一个业务主键，即符合第二范式的表不饿能存在非主键列只对部分主键的依赖关系。
+
+  - ##### 数据库设计第三范式：每一个非主属性既不部分依赖于也不传递于业务主键，也就是在第二范式的基础上相处了非主键对主键的传递依赖。
+
+    **备注：**完全符合范式化的设计有时并不能得到良好的SQL查询性能
+
+- ##### 反范式设计
+
+  - ##### 所谓反范式化就是为了性能和读取效率的考虑而适当的对数据库设计范式要求进行违反。
+
+  - ##### 允许存在少量的冗余，即反范式化就是使用空间来换取时间。
+
+- ##### 范式化设计优缺点
+
+  - 优点：可以尽量的减少数据冗余；范式化的更新操作比反范式化更快；范式化的表通常比反范式化的表更小。
+  - 缺点：对于查询需要对多个表进行关联；更难进行索引优化
+
+- ##### 反范式化设计优缺点
+
+  - 优点：可以减少表的关联；可以更好的进行索引优化
+  - 缺点：存在数据冗余及数据维护异常；对数据的修改徐奥更多的成本。
+
+##### 物理设计
+
+- ##### 命名规范
+
+  - 数据库、表、字段的命名要遵守可读性原则（使用大小写来格式化的库对象名字以获得良好的可读性）
+  - 数据库、表、字段的命名要遵守表意性原则（对象名字应该能够顾描述它所表示的对象）
+  - 数据库、表、字段的命名要遵守长名要遵守长名原则（尽可能少使用或者不使用缩写）
+
+- ##### 存储引擎选择
+
+  ![1561449789233](.\images\引擎区别.png)
+
+- ##### 数据类型选择
+
+  当一个可以选择多种数据类型时:
+
+  - ##### 优先考虑数字类型
+
+  - ##### 其次是日期、时间类型
+
+  - ##### 最后是字符类型
+
+  - ##### 对于相同级别的数据类型，应该优先选择占用空间小的数据类型
+
+    浮点类型
+
+    | 列类型  | 存储空间                            | 是否精确类型 |
+    | ------- | ----------------------------------- | ------------ |
+    | FLOAT   | 4个字节                             | 否           |
+    | DOUBLE  | 8个字节                             | 否           |
+    | DECIMAL | 每4个字节存9个数字，小数点占1个字节 | 是           |
+
+    注意：float和double是非精确度类型，如果是和金额相关尽量用decimal
+
+##### 慢查询
+
+- ##### 概念
+
+  就是查询慢的日志，是指mysql记录所有执行超过long_query_time参数设定的时间阈值的SQL语句的日志。该日志能为SQL语句的优化带来很好的帮助。默认情况下，慢查询日志是关闭的，要使用慢查询日志功能，首先要开启慢查询日志功能。
+
+- ##### 慢查询配置
+
+  - 慢查询基本配置
+
+    - show_query_log：启动停止慢查询日志
+
+    - show_query_log_file：指定慢查询日子和存储路径及文件（默认和数据文件放一起）
+
+    - long_query_time：指定记录慢查询日志SQL执行时间的阈值（单位：秒，默认10秒）
+
+    - log_queries_not_using_indexes：是否记录未使用索引的SQL
+
+    - log_output：日志存放的地方（table，file，file-table）
+
+      配置了慢查询后，它会记录符合条件的SQL，包括：查询语句、数据修改语句、已经回滚的SQL
+
+      ```mysql
+      show VARIABLES like '%slow_query_log%';
+      
+      show VARIABLES like '%slow_query_log_file%';
+      
+      show VARIABLES like '%long_query_time%';
+      
+      show VARIABLES like '%log_queries_not_using_indexes%';
+      
+      show VARIABLES like 'log_output';
+      
+      
+      set global long_query_time=0;   -- 默认10秒，这里为了演示方便设置为0 
+      
+      set GLOBAL  slow_query_log = 1; -- 开启慢查询日志
+      
+      set global log_output='FILE,TABLE'  -- 项目开发中日志只能记录在日志文件中，不能记表中
+      
+      -- 慢查询日志文件路径为：/usr/local/mysql/data/localhost-slow.log
+      ```
+
+  - 慢查询解读
+
+    ```mysql
+    -- 查看日志文件/usr/local/mysql/data/localhost-slow.log里面的数据组成如下：
+    -- 用户名、用户的IP信息、线程ID号
+    # User@Host: root[root] @  [192.168.244.1]  Id:    30
+    -- 执行花费的时间（单位：毫秒）、执行获取锁的时间、获得的结果行数
+    # Query_time: 0.000298  Lock_time: 0.000120 Rows_sent: 0  
+    -- 扫描的数据行数
+    Rows_examined: 0
+    -- SQL执行的具体时间
+    SET timestamp=1561452234;
+    -- 具体的SQL时间
+    SELECT * FROM `mall`.`account` LIMIT 0;
+    ```
+
+- ##### 慢查询分析
+
+  慢查询的日志记录非常多，通过一些工具辅助快速定位到需要优化的SQL语句，如下：
+
+  - ##### mysqldumpslow：常用的慢查询日志分析工具，，汇总除查询条件外其他完全相同的SQL，并将分析结果按照参数中所制定的顺序输出
+
+    ```mysql
+    -- 语法
+    mysqldumpslow -s r -t 10 localhost-slow.log
+    -- 其中 -s order（c-总次数，t-总时间，l-锁的时间，r-总数据行，at-平均查询时间，al-平均锁定时间，ar-平均返回记录时间）-t top 执行去前面几条作为结果输出
+    ```
+
+  - ##### pt-query-digest：是用于分析mysql慢查询的一个工具
+
+    - 安装
+
+      ```shell
+      -- pt-query-digest依赖包
+      yum -y  install 'perl(Data::Dumper)';
+      yum -y install perl-Digest-MD5;
+      yum -y install perl-DBI;
+      yum -y install perl-DBD-MySQL;
+      
+      -- 安装pt-query-digest文件
+      yum -y install wget
+      wget percona.com/get/pt-query-digest
+      
+      -- 执行慢查询命令
+      perl ./pt-query-digest --explain h=127.0.0.1,u=root,p=root /usr/local/mysql/data/localhost-slow.log 
+      -- 结果如下图：
+      -- 总的查询时间
+      -- 总的锁定时间
+      -- 总的获取数据量
+      -- 扫描的数据量
+      -- 查询大小
+      -- Response:总的查询时间；time：该查询在本次分析中总的时间占比；calls：执行次数，即本次分析总共有多少条这种类型的查询语句；R/Call：平均每次执行的响应时间；Item：查询对象
+      ```
+
+      ![pt-query-digest分析](F:\mysql\images\pt-query-digest分析.png)
+
+    - 
+
+- 
