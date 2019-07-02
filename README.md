@@ -1274,6 +1274,695 @@ show variables like '%storage_engine%';
 
       ![pt-query-digest分析](F:\mysql\images\pt-query-digest分析.png)
 
-    - 
 
-- 
+##### 索引：索引是数据结构
+
+- ##### 索引是什么
+
+  - ##### 二分查找：折半查找法，用来查找一组有序的记录数组中的耨已记录
+
+    将记录按有序化（递增或递减）排列，在查找过程中采用跳跃式方式查找，即先以有序数列的中点位置作为比较位置，如果要找的元素小于该中点元素，则将待查序列所需为左半部分，否则为右半部分，通过一次比较，将查找区间缩小一半。
+
+    ```markdown
+    # 实例，升序，查找数字48
+    数据：5， 10， 19， 21， 31， 37， 42， 48， 50， 52 
+    下标：0， 1，  2，  3，  4，  5，  6，  7，  8，  9 
+    
+    步骤一：设置数据下标，设low为下标最小值0，high为下标最大值9
+    步骤二：通过low和high得到mid，mid=（low+high）/2
+    步骤三：mid=4对应的数据为31，31<48
+    步骤四：通过二分查找，将low设置为31对应下标为4，此时mid=6
+    步骤五：mid=6对应的数据为42，42<48
+    步骤六：通过二分查找，将low设置为42对应下标为6，此时mid=7
+    步骤七：mid=7对应的数据为48，48==48，查找结束
+    # 通过3次二分查找，找到了所要查找的数字，而顺序查找需要8次
+    ```
+
+  - ##### 二叉树（Binary Tree）
+
+    每个节点至多只有二棵子树；
+
+    二叉树的子树有左右之分，次序不能颠倒；
+
+    一棵深度为k，且有2^k -1节点，称为满二叉树（Full Tree）；
+
+    一棵深度为k，且root到k-1层的节点树都达到最大，第k层的所有节点都连续集中在最左边，此时为完全二叉树（Complete Tree）
+
+    - 平衡二叉树（AVL-树）
+
+      - 左子树和右子树都是平衡二叉树；
+
+      - 左子树和右子树的高度差绝对值不超过1；
+
+        ![img](./images/平衡二叉树.png)
+
+    - 平衡二叉树的遍历
+
+      - 前序：6，3，2，5，7，8（Root节点在开头，中-左-右顺序）
+      - 中序：2，3，5，6，7，8（中序遍历即为升序，左-中-右顺序）
+      - 后序：2，5，3，8，7，6（Root节点在结尾，左-右-中顺序）
+
+    - 平衡二叉树的旋转
+
+      需要通过旋转（左旋，右旋）来维护平衡二叉树的平衡，在添加和删除时需要有额外的开销
+
+      ![img](./images/平衡二叉树旋转.jpg)
+
+  - ##### B+树（在数据结构与算法中）
+
+- ##### 索引的分类
+
+  - ##### 普通索引：即一个索引只包含单个列，一个表可以有多个单列索引
+
+  - ##### 唯一索引：索引列的值必须唯一，但允许有空值
+
+  - ##### 复合索引：即一个索引包含多个列
+
+  - ##### 聚簇索引：并不是一种单独的索引类型，而是一种数据存储方式。具体细节取决于不同的实现，InnoDB的聚簇索引其实就是在同一个结构中保存了B-Tree索引和数据行
+
+  - ##### 非聚簇索引：不是聚簇索引，就是非聚簇索引
+
+- ##### 基础语法
+
+  ```mysql
+  -- 查看索引
+  show index from table_name;
+  -- 创建索引
+  create [unique] index index_name on table_name(column_name(length));
+  alter table table_name add [unique] index [index_name] (column_name);
+  -- 删除索引
+  drop index [index_name] on table_name;
+  ```
+
+##### 执行计划
+
+- ##### 定义：使用explain关键字可以模拟优化器执行SQL查询语句，从而知道MySQL是如何处理你的SQL语句的，分析你的查询语句或是表结构的性能瓶颈。
+
+- ##### 作用
+
+  - 表的读取顺序
+  - 数据读取操作的操作类型
+  - 哪些索引可以使用
+  - 哪些索引被实际使用
+  - 表之间的引用
+  - 每张表有多少行被优化器查询
+
+- ##### 语法
+
+  ```mysql
+  explain select * from account where id = 1;
+  ```
+
+- ##### 执行计划详解（通过执行计划来看sql，而不是通过sql来猜测执行计划）
+
+  ```mysql
+  -- 实例sql
+  DROP TABLE IF EXISTS `t1`;
+  CREATE TABLE `t1` (
+    `id` int(11) NOT NULL,
+    `other_column` char(20) DEFAULT NULL,
+    `col1` char(20) DEFAULT NULL,
+    `col2` varchar(20) DEFAULT NULL,
+    `col3` varchar(20) DEFAULT NULL,
+    PRIMARY KEY (`id`),
+    KEY `idx_col1_col2_col3` (`col1`,`col2`,`col3`) USING HASH
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  -- ----------------------------
+  -- Records of t1
+  -- ----------------------------
+  INSERT INTO `t1` VALUES ('1', 'asd', 'ac', 'ac', 'ac');
+  INSERT INTO `t1` VALUES ('2', '2', 'ac', 's', 'a');
+  INSERT INTO `t1` VALUES ('3', 'ac', 'sc', 'a', 'a');
+  
+  -- ----------------------------
+  -- Table structure for t2
+  -- ----------------------------
+  DROP TABLE IF EXISTS `t2`;
+  CREATE TABLE `t2` (
+    `id` int(11) NOT NULL,
+    `other_column` char(20) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  -- ----------------------------
+  -- Records of t2
+  -- ----------------------------
+  INSERT INTO `t2` VALUES ('1', '');
+  
+  -- ----------------------------
+  -- Table structure for t3
+  -- ----------------------------
+  DROP TABLE IF EXISTS `t3`;
+  CREATE TABLE `t3` (
+    `id` int(11) NOT NULL,
+    `other_column` char(20) DEFAULT NULL,
+    PRIMARY KEY (`id`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+  
+  -- ----------------------------
+  -- Records of t3
+  -- ----------------------------
+  INSERT INTO `t3` VALUES ('1', '');
+  ```
+
+  
+
+  ```markdown
+  # 包含如下几列
+  | id | select_type | table   | partitions | type  | possible_keys | key     | key_len | ref   | rows | filtered | Extra 
+  ```
+
+  - ##### ID列：描述select查询的序列号，包含一组数字，表示查询中执行select字句或操作表的顺序；根据ID的数值可以分为以下三种情况：
+
+    - id相同：执行顺序由上而下
+
+      ```mysql
+      EXPLAIN SELECT
+      	t2.*
+      FROM
+      	t1,
+      	t2,
+      	t3
+      WHERE
+      	t1.id = t2.id
+      AND t1.id = t3.id;
+      ```
+
+    - id不同：如果是子查询，id序号会递增，id值越大优先级越高，越先被执行
+
+      ```mysql
+      EXPLAIN
+      select * from t2 where id = (
+      select id from t1 where id = (select id from t3 where other_column = ''));
+      ```
+
+    - id相同不同：同时存在
+
+      ```mysql
+      EXPLAIN
+      select t2.* from (
+       select id from t1 where id =  (select t3.id from t3 where t3.other_column='')
+      ) s1 ,t2 where s1.id = t2.id;
+      ```
+
+      
+
+  - ##### select_type列：查询类型，用于区分普通查询/联合查询/子查询等的复合查询
+
+    | 类型         | 描述                                                         |
+    | ------------ | ------------------------------------------------------------ |
+    | SIMPLE       | 简单的select查询，查询中不包含子查询或者UNION                |
+    | PRIMARY      | 查询中若包含任何复杂的字部份，最外层查询则被标记             |
+    | SUBQUERY     | 在select或where列表中包含子查询                              |
+    | DERIVED      | 在from列表中包含的子查询被标记为DERIVED（衍生）。MySQL会递归执行这些子查询，把结果放在临时表里。 |
+    | UNION        | 若第二个select出现在UNION之后，则被标记为UNION；若UNION包含在from子句的子查询中，外层select将被标记为DERIVED |
+    | UNION RESULT | 从UNION表获取结果的select                                    |
+
+    - SIMPLE
+
+      ```mysql
+      explain select * from t1;
+      ```
+
+    - PRIMARY与SUBQUERY
+
+      ```mysql
+      explain select t1.*,(select t2.id from t2 where t2.id = 1) from t1;
+      ```
+
+    - DERIVED
+
+      ```mysql
+      -- 在mysql5.6中t2显示为derived；但是在mysql5.7中显示为simple 这个和数据库版本和数据量有关
+      EXPLAIN select t1.* from t1 ,(select t2.* from t2 where t2.id = 1 ) s2  where t1.id = s2.id;
+      ```
+
+    - UNION与UNION RESULT
+
+      ```mysql
+      explain 
+      select * from t2 
+      UNION
+      select * from t2;
+      ```
+
+  - ##### table列：显示这一行的数据是关于哪张表的
+
+  - ##### Type列：访问类型，是较为重要的一个指标，结果值从最好到最坏依次是：
+
+    system > const > eq_ref > ref > fulltext > ref_or_null > index_merge > unique_subquery > index_subquery > range > index > ALL
+
+    ##### 常用顺序：system > const > eq_ref > ref > range > index > ALL；一般来说，得保证查询至少达到range级别，最好能达到ref
+
+    - ##### System与const
+
+      System：表只有一行记录（等于系统表），这是const类型的特列；
+
+      Const：表示通过索引一次就找到了；Const用于比较primary key或者unique索引，因为只匹配一行数据，所以很快
+
+      ```mysql
+      EXPLAIN
+      select * from t2 where id = 1;-- id为primary key
+      ```
+
+    - ##### eq_ref：唯一性索引扫描，对于每个索引键，表中只有一条记录与之匹配。常见于主键或唯一索引扫描
+
+      ```mysql
+      EXPLAIN
+       SELECT * from t1,t2 where t1.id = t2.id；-- t1:eq_ref
+      ```
+
+    - ##### Ref：非唯一性索引扫描，返回匹配某个单独值的所有行；本质上也是一种索引访问，它返回所有匹配某个单独值的行，然而，它可能会找到多个符合条件的行，所以它应该属于查找和扫描的混合体
+
+      ```mysql
+      EXPLAIN
+      select count(DISTINCT col1) from t1 where col1 = 'ac';
+      ```
+
+    - ##### range：只检索给定范围的行，使用一个索引来选择行。key列显示使用了哪个索引，一般就是where语句中出现between、<、<、in等的查询这种范围扫描索引扫描比全表扫描要好，因为它只要开始于索引的某一点，而结束于另一个点，不用扫描全部索引
+
+      ```mysql
+      EXPLAIN select * from t1 where id BETWEEN 30 and 60;
+      
+      EXPLAIN select * from t1 where id in(1,2);
+      ```
+
+    - ##### Index：当查询的结果全为索引列的时候，虽然也是全部扫描，但是只查询的索引库，而没有区查询数据
+
+      ```mysql
+      EXPLAIN select c2 from testdemo;
+      ```
+
+    - ##### ALL：将遍历全表以找到匹配的行
+
+      ```mysql
+      EXPLAIN select * from t1;
+      ```
+
+  - ##### possible_keys与key
+
+    possible_keys：可能使用的key
+
+    key：实际使用的索引，如果为NULL，则没有使用索引
+
+    查询中若使用了覆盖索引，则该索引和查询的select字段重叠
+
+    ```mysql
+    EXPLAIN select col1,col2 from t1;
+    ```
+
+  - ##### key_len： 表示索引中使用的字节数，可通过该列计算查询中使用的索引的长度。在不损失精确性的情况下，长度越短越好；显示的值为索引字段的最大可能长度，并非实际使用长度，即ken_len是根据表定义计算而得，不是通过表内检索出的
+
+    - ken_len表示索引使用的字节数
+
+    - 根据这个值，就可以判断索引使用情况，特别是在组合索引时，判断所有的索引字段是否都i被查询用到
+
+    - char和varchar跟字符编码也有密切的联系
+
+    - latin1占1个字节，gbk占用2个字节，utf8占用3个字节
+
+      ##### 字符类型：真正建立所有的类型常用情况只是char、varchar
+
+      - 字符类型-索引字段为char类型+不可为Null时
+
+        ```mysql
+        CREATE TABLE `s1` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `name` char(10) NOT NULL,
+          `addr` varchar(20) DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          KEY `name` (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+         
+         -- ken_len=3*10+0=30
+        explain select * from s1 where name='james';
+        ```
+
+      - 字符类型-索引字段为char类型+允许为Null时
+
+        ```mysql
+        CREATE TABLE `s2` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `name` char(10) DEFAULT NULL,
+          `addr` varchar(20) DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          KEY `name` (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+         
+         -- ken_len=3*10+1=31
+        explain select * from s2 where name='james';
+        ```
+
+      - 字符索引-索引字段为varchar类型+不可为Null时
+
+        ```mysql
+        CREATE TABLE `s3` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `name` varchar(10) NOT NULL,
+          `addr` varchar(20) DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          KEY `name` (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+         
+         -- ken_len=3*10+2=32  varchar类型要加2
+        explain select * from s3 where name='james';
+        ```
+
+      - 字符索引-索引字段为varchar类型+允许为Null时
+
+        ```mysql
+        CREATE TABLE `s4` (
+          `id` int(11) NOT NULL AUTO_INCREMENT,
+          `name` varchar(10) DEFAULT NULL,
+          `addr` varchar(20) DEFAULT NULL,
+          PRIMARY KEY (`id`),
+          KEY `name` (`name`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+         
+         -- key_len=3*10+1+2=33
+        explain select * from s3 where name='james';
+        ```
+
+      ##### 数字类型
+
+      ```mysql
+      CREATE TABLE `numberKeyLen ` (
+      `c0`  int(255) NOT NULL ,
+      `c1`  tinyint(255) NULL DEFAULT NULL ,
+      `c2`  smallint(255) NULL DEFAULT NULL ,
+      `c3`  mediumint(255) NULL DEFAULT NULL ,
+      `c4`  int(255) NULL DEFAULT NULL ,
+      `c5`  bigint(255) NULL DEFAULT NULL ,
+      `c6`  float(255,0) NULL DEFAULT NULL ,
+      `c7`  double(255,0) NULL DEFAULT NULL ,
+      PRIMARY KEY (`c0`),
+      INDEX `index_tinyint` (`c1`) USING BTREE ,
+      INDEX `index_smallint` (`c2`) USING BTREE ,
+      INDEX `index_mediumint` (`c3`) USING BTREE ,
+      INDEX `index_int` (`c4`) USING BTREE ,
+      INDEX `index_bigint` (`c5`) USING BTREE ,
+      INDEX `index_float` (`c6`) USING BTREE ,
+      INDEX `index_double` (`c7`) USING BTREE 
+      )
+      ENGINE=InnoDB
+      DEFAULT CHARACTER SET=utf8 COLLATE=utf8_general_ci
+      ROW_FORMAT=COMPACT;
+      
+      -- key_len = 数字类型所占字节数+Null（1）
+      EXPLAIN
+      select * from  numberKeyLen where c1=1;-- key_len=1+1=2
+      
+      EXPLAIN
+      select * from  numberKeyLen where c2=1;-- key_len=2+1=3
+      
+      EXPLAIN
+      select * from  numberKeyLen where c3=1;-- key_len=3+1=4
+      
+      EXPLAIN
+      select * from  numberKeyLen where c4=1;-- key_len=4+1=5
+      
+      EXPLAIN
+      select * from  numberKeyLen where c5=1;-- key_len=8+1=9
+      
+      EXPLAIN
+      select * from  numberKeyLen where c6=1;-- key_len=4+1=5
+      
+      EXPLAIN
+      select * from  numberKeyLen where c7=1;-- key_len=8+1=9
+      ```
+
+      ##### 日期和时间
+    
+      ```mysql
+      CREATE TABLE `datatimekeylen ` (
+      `c1`  date NULL DEFAULT NULL ,
+      `c2`  time NULL DEFAULT NULL ,
+      `c3`  year NULL DEFAULT NULL ,
+      `c4`  datetime NULL DEFAULT NULL ,
+      `c5`  timestamp NULL DEFAULT NULL ,
+      INDEX `index_date` (`c1`) USING BTREE ,
+      INDEX `index_time` (`c2`) USING BTREE ,
+      INDEX `index_year` (`c3`) USING BTREE ,
+      INDEX `index_datetime` (`c4`) USING BTREE ,
+      INDEX `index_timestamp` (`c5`) USING BTREE 
+      )
+      ENGINE=InnoDB
+      DEFAULT CHARACTER SET=utf8 COLLATE=utf8_general_ci
+      ROW_FORMAT=COMPACT;
+      
+      -- key_len = 日期和时间类型所占字节数+Null（1）
+      EXPLAIN
+      SELECT  * from datatimekeylen where c1 = 1;-- key_len=3+1=4
+      
+      EXPLAIN
+      SELECT  * from datatimekeylen where c2 = 1;-- key_len=3+1=4
+      
+      EXPLAIN
+      SELECT  * from datatimekeylen where c3 = 1;-- key_len=1+1=2
+      
+      EXPLAIN
+      SELECT  * from datatimekeylen where c4 = 1;-- key_len=5+1=6
+      
+      EXPLAIN
+      SELECT  * from datatimekeylen where c5 = 1;-- key_len=4+1=5
+      -- datetime类型在5.6中字段长度为5个字节
+      -- datetime类型在5.5中字段长度为8个字节
+      ```
+  
+  - ##### Ref：显示索引的哪一列被使用了，如果可能的话，是一个常数。哪些列和常量被用于查找索引列上的值
+  
+    ```mysql
+    EXPLAIN
+    select * from s1 ,s2 where s1.id = s2.id and s1.name = 'enjoy';
+    ```
+  
+  - ##### Rows：根据表统计信息及索引选用情况，大致估算出找到所需的记录所需要读取的行数
+  
+  - ##### Extra：包含不适合在其他类中显示但十分重要的额外信息
+  
+    - ##### Using filesort：说明mysql会对数据使用一个外部的索引排序，而不是按照表内的索引顺序进行读取。MySQL中无法利用索引完成的排序操作称为“文件排序”；当发现有Using filesort后，实际上就是发现了可以优化的地方
+  
+      ```mysql
+      EXPLAIN select col1 from t1 where col1='ac' order by col3;
+      
+      -- 当排序增加了col2之后，就没有了
+      EXPLAIN select col1 from t1 where col1='ac' order by col2,col3;
+      ```
+  
+    - ##### Using temporary：使用了临时表保存中间结果，MySQL在对查询结果排序时使用临时表。常用于排序order by和分组查询group by
+  
+      ```mysql
+      EXPLAIN select col1 from t1 where col1 in('ac','ab','aa') GROUP BY col2;
+      -- Using where; Using index; Using temporary; Using filesort
+      
+      EXPLAIN select col1 from t1 where col1 in('ac','ab','aa') GROUP BY col1,col2;
+      -- Using where; Using index 
+      -- 在执行计划里面有using filesort而且还有Using temporary的时候，特别需要注意
+      ```
+  
+    - ##### Using index：表示相应的select操作中使用了覆盖索引（Covering Index），避免访问了表的数据行，效率不错
+  
+      ```mysql
+      -- 如果同时出现using where，表明索引被用来执行索引键值的查找
+      EXPLAIN select col2 from t1 where col1 = 'ab';
+      -- 如果没有同时出现using where，表明索引用来读取数据而非执行查找动作
+      EXPLAIN select col2 from t1;
+      ```
+  
+      ##### 覆盖索引：有两种理解方式
+  
+      - 就是select的数据列只用从索引中就能够取得，不必读取数据行，MySQL可以利用索引返回select列表中的字段，而不必根据索引再次读取数据文件，即查询列要被所建的索引覆盖
+  
+      - 索引是高效找到行的一个方法，但是一般数据库也能使用索引找到一个列的数据，因此它不必读取整个行。毕竟索引叶子节点存储了他们索引的数据，即可以通过读取索引得到想要的数据，就不需要读取行了。一个索引包含了满足查询结果的数据就是覆盖索引
+  
+        **注意：**如果使用覆盖索引，要注意select列表中只取出需要的列，不可select *，因为如果将所有字段一起做索引会导致索引文件过大，查询性能下降；
+  
+    - ##### Using where：使用了where过滤
+  
+    - ##### Using join buffer：使用了连接缓存
+  
+      ```mysql
+      EXPLAIN select * from t1  JOIN t2  on t1.other_column = t2.other_column;
+      
+      -- 查看缓存大小
+      show variables like '%join_buffer_size%';
+      ```
+  
+    - ##### Impossible where：where字句的值总是false，不能用来获取任何元组
+  
+      ```mysql
+      EXPLAIN select * from t1 where 1=2
+      
+      EXPLAIN select * from t1 where  t1.other_column ='kobe' and t1.other_column = 'james'
+      ```
+  
+  ##### SQL优化
+  
+  - ##### 优化实战
+  
+    ```mysql
+    -- 实例表
+    CREATE TABLE `staffs`(
+    	id int primary key auto_increment,
+    	name varchar(24) not null default "" comment'姓名',
+    	age int not null default 0 comment '年龄',
+    	pos varchar(20) not null default ""  comment'职位',
+    	add_time timestamp not null default current_timestamp comment '入职时间'
+    	)charset utf8 comment '员工记录表';
+     
+    	
+    insert into staffs(name,age,pos,add_time) values('z3',22,'manage',now());
+    insert into staffs(name,age,pos,add_time) values('july',23,'dev',now());
+    insert into staffs(name,age,pos,add_time) values('2000',23,'dev',now());
+     
+    alter table staffs add index idx_staffs_nameAgePos(name,age,pos);
+    ```
+  
+    - ##### 尽量全值匹配
+  
+      ```mysql
+      -- 当建立了索引列后，能在where条件中使用索引的尽量所用。
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July' AND age = 25;
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July' AND age = 25 AND pos = 'dev';
+      ```
+  
+    - ##### 最佳左前缀法则
+  
+      ```mysql
+      -- 查询从索引的最左前列开始并且不跳过索引中的列
+      EXPLAIN SELECT * FROM staffs WHERE  age = 25 AND pos = 'dev';-- 全表扫描
+      EXPLAIN SELECT * FROM staffs WHERE pos = 'dev';-- 全表扫描
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
+      ```
+  
+    - ##### 不在索引列上做任何操作
+  
+      ```mysql
+      -- 不在索引列上做任何操作（计算、函数、（自动或手动）类型转换），会导致索引失效而转向全表扫描
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
+      
+      EXPLAIN SELECT * FROM staffs WHERE left(NAME,4) = 'July';-- 全表扫描
+      ```
+  
+    - ##### 范围查找放最后
+  
+      ```mysql
+      -- 中间有范围查询会导致后面的索引列全部失效,故需要将范围查找放最后（不是sql中放到最后，而是将范围的该字段索引顺序放到最后）
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July'  and age >22 and pos='manager';
+      ```
+  
+    - ##### 覆盖索引尽量用
+  
+      ```mysql
+      -- 尽量使用覆盖索引（只访问索引的查询（索引列和查询列一致）），减少select *
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July'  and age =22 and pos='manager';
+      
+      EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME = 'July'  and age =22 and pos='manager';
+      
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July'  and age >22 and pos='manager';
+      
+      EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME = 'July'  and age >22 and pos='manager';
+      ```
+  
+    - ##### “不等于”要慎用
+  
+      ```mysql
+      -- mysql在使用不等于时，无法使用索引，会导致全表扫描
+      EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
+      
+      EXPLAIN SELECT * FROM staffs WHERE NAME != 'July';
+      
+      EXPLAIN SELECT * FROM staffs WHERE NAME <> 'July';
+      -- 如果必须使用不等于，用覆盖索引
+      EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME != 'July';
+      
+      EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME <> 'July';
+      ```
+  
+    - ##### Null/Not有影响
+  
+      ```mysql
+      -- 自定义为Not Null
+      EXPLAIN select * from staffs where name is null;
+      
+      EXPLAIN select * from staffs where name is not null;
+      -- 在字段为not null的情况下，使用is null或is not null会导致索引失效
+      -- 解决方式：覆盖索引
+      EXPLAIN select name,age,pos from staffs where name is not null;
+      
+      -- 自定义为Null或者不定义
+      -- 在字段为null或者不定义的情况下，使用is not null会导致索引失效
+      -- 解决方式：覆盖索引
+      ```
+  
+    - ##### Like查询要当心
+  
+      ```mysql
+      -- like以通配符开头（'%abc...'），mysql索引失效会变成全表扫描的操作
+      EXPLAIN select * from staffs where name ='july';
+      
+      EXPLAIN select * from staffs where name like '%july%';
+      
+      EXPLAIN select * from staffs where name like '%july';
+      
+      EXPLAIN select * from staffs where name like 'july%';-- 效率较高
+      -- 解决方式：覆盖索引
+      EXPLAIN select name,age,pos from staffs where name like '%july%';
+      ```
+  
+    - ##### 字符类型加引号
+  
+      ```mysql
+      -- 字符串不加单引号索引失效
+      EXPLAIN select * from staffs where name = 917;
+      -- 解决方式：加单引号
+      EXPLAIN select * from staffs where name = '917'；
+      ```
+  
+    - ##### OR改UNION效率高
+  
+      ```mysql
+      EXPLAIN
+      select * from staffs where name='July' or name = 'z3';
+      
+      -- 使用union代替or
+      EXPLAIN
+      select * from staffs where name='July' 
+      UNION
+      select * from staffs where  name = 'z3';
+      -- 解决方式：覆盖索引
+      EXPLAIN select name,age from staffs where name='July' or name = 'z3';
+      ```
+  
+  - ##### 批量导入
+  
+    - ##### insert语句优化
+  
+      - 提交前关闭自动提交
+      - 尽量使用批量insert语句
+      - 可以使用MyISAM存储引擎
+  
+    - ##### LOAD DATA INFLIE
+  
+      ```mysql
+      -- 使用load data infile比一般的insert语句快20倍
+      -- 将表product_info中的数据导出到文件product.txt中
+      select * into OUTFILE 'D:\\product.txt' from product_info;
+      
+      -- 将文件product.txt中的数据导入到表product_info中
+      load data INFILE 'D:\\product.txt' into table product_info;
+      
+      -- 查看变量secure_file_priv
+      show VARIABLES like 'secure_file_priv';
+      
+      -- secure_file_priv 为 NULL 时，表示限制mysqld不允许导入或导出。
+      
+      -- secure_file_priv 为 /tmp 时，表示限制mysqld只能在/tmp目录中执行导入导出，其他目录不能执行。
+      
+      -- secure_file_priv 没有值时，表示不限制mysqld在任意目录的导入导出。
+      ```
+  
+      
+
