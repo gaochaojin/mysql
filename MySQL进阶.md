@@ -77,7 +77,7 @@ FLUSH PRIVILEGES;
 show master status;
 ```
 
-![1589941160202](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1589941160202.png)
+![1589941160202](./images/1589941160202.png)
 
 在Slave上配置master信息
 
@@ -94,7 +94,7 @@ change master to master_host='192.168.136.200',master_port=3306,master_user='rep
 show slave status\G;
 ```
 
-![1589941932089](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1589941932089.png)
+![1589941932089](./images/1589941932089.png)
 
 开启slave，启动SQL和IO线程
 
@@ -102,7 +102,7 @@ show slave status\G;
 start slave;
 ```
 
-![1589942012635](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1589942012635.png)
+![1589942012635](./images/1589942012635.png)
 
 查看进程信息
 
@@ -112,11 +112,11 @@ SHOW PROCESSLIST;
 
 Master信息
 
-![1589943115337](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1589943115337.png)
+![1589943115337](./images/1589943115337.png)
 
 Slave信息
 
-![1589943126771](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1589943126771.png)
+![1589943126771](./images/1589943126771.png)
 
 然后在Master中对数据库进行操作，然后在Slave中就可以看到数据库同步了。
 
@@ -327,10 +327,10 @@ ip a
 
 192.168.136.200
 
-![1590372693675](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1590372693675.png)
+![1590372693675](./images/1590372693675.png)
 
 当关闭200机器的keepalived，则201机器漂移到100
 
 192.168.136.201
 
-![1590372083143](C:\Users\BBD\AppData\Roaming\Typora\typora-user-images\1590372083143.png)
+![1590372083143](./images/1590372083143.png)
