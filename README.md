@@ -385,21 +385,21 @@
 
 - ##### 体系
 
-  ![1560994734245](.\images\体系.png)
+  ![1560994734245](./images/体系.png)
 
   - ##### 连接层
 
-    ![](.\images\连接层1.png)
+    ![](./images/连接层1.png)
 
     当mysql启动（mysql服务器就是一个进程），等待客户端链接，每一个客户端链接请求，服务器斗湖i新建一个线程处理（如果是线程池的话，则是分配一个空的线程），每个线程独立，拥有各自的呢次村处理空间。
 
-    ![1560995571509](.\images\连接层2.png)
+    ![1560995571509](./images/连接层2.png)
 
     连接到服务器，服务器需要对其进行验证，也就是用户名、ip、密码验证，一旦链接成功，还要验证是否具有某个特定查询的权限
 
   - ##### SQL处理层
 
-    ![1560995758601](.\images\SQL处理层.png)
+    ![1560995758601](./images/SQL处理层.png)
 
     这一层主要功能有：SQL语句的解析、优化、缓存的查询，mysql内置函数的实现，跨存储引擎功能（所谓跨存储引擎就是每个引擎都是提供的功能）
 
@@ -440,7 +440,7 @@
       LIMIT <limit_number>
       ```
 
-      ![1560997001596](.\images\解析查询.png)
+      ![1560997001596](./images/解析查询.png)
 
     - ##### 优化
 
@@ -459,11 +459,9 @@
       select t.* from account t join account t2 on t.id = t2.id;
       ```
 
-      
-
 - ##### 逻辑架构
 
-  ![1560997611430](.\images\逻辑架构.png)
+  ![1560997611430](./images/逻辑架构.png)
 
   在mysql中其实还有schema的概念，没有太多作用，只是为了兼容其他数据库，   database和schema是等价的
 
@@ -571,7 +569,7 @@ show variables like '%storage_engine%';
 
   - 与MyISAM的区别
 
-    ![1561081273656](.\images\Innodb和MyIsam的区别.png)
+    ![1561081273656](./images/Innodb和MyIsam的区别.png)
 
 - ##### CSV
 
@@ -632,7 +630,7 @@ show variables like '%storage_engine%';
 
   - 与临时表的区别
 
-    ![](.\images\memory与临时表的区别.png)
+    ![](./images/memory与临时表的区别.png)
 
   - 使用场景
 
@@ -719,7 +717,7 @@ show variables like '%storage_engine%';
 
   表独占写锁（Table Write Lock）
 
-  ![1561102488417](.\images\表共享锁和独占锁.png)
+  ![1561102488417](./images/表共享锁和独占锁.png)
 
   - 共享读锁
 
@@ -1017,7 +1015,7 @@ show variables like '%storage_engine%';
   - ##### 间隙锁（gap锁）
 
     在mysql中，可重复锁已经解决了幻读问题，借助的就是间隙锁
-    
+
     ```mysql
     -- 实例1
     -- 查看事务隔离级别
@@ -1067,8 +1065,6 @@ show variables like '%storage_engine%';
     -- 主键索引只锁住了a=5的这条记录
     -- 二级索引所著的范围是（1，3），（3，6）
     ```
-    
-    
 
 - ##### 事务并发问题
 
@@ -1151,7 +1147,7 @@ show variables like '%storage_engine%';
 
 - ##### 存储引擎选择
 
-  ![1561449789233](.\images\引擎区别.png)
+  ![1561449789233](./images/引擎区别.png)
 
 - ##### 数据类型选择
 
@@ -1426,7 +1422,7 @@ show variables like '%storage_engine%';
   INSERT INTO `t3` VALUES ('1', '');
   ```
 
-  
+
 
   ```markdown
   # 包含如下几列
@@ -1465,8 +1461,6 @@ show variables like '%storage_engine%';
        select id from t1 where id =  (select t3.id from t3 where t3.other_column='')
       ) s1 ,t2 where s1.id = t2.id;
       ```
-
-      
 
   - ##### select_type列：查询类型，用于区分普通查询/联合查询/子查询等的复合查询
 
@@ -1729,29 +1723,29 @@ show variables like '%storage_engine%';
       -- datetime类型在5.6中字段长度为5个字节
       -- datetime类型在5.5中字段长度为8个字节
       ```
-  
+
   - ##### Ref：显示索引的哪一列被使用了，如果可能的话，是一个常数。哪些列和常量被用于查找索引列上的值
-  
+
     ```mysql
     EXPLAIN
     select * from s1 ,s2 where s1.id = s2.id and s1.name = 'enjoy';
     ```
-  
+
   - ##### Rows：根据表统计信息及索引选用情况，大致估算出找到所需的记录所需要读取的行数
-  
+
   - ##### Extra：包含不适合在其他类中显示但十分重要的额外信息
-  
+
     - ##### Using filesort：说明mysql会对数据使用一个外部的索引排序，而不是按照表内的索引顺序进行读取。MySQL中无法利用索引完成的排序操作称为“文件排序”；当发现有Using filesort后，实际上就是发现了可以优化的地方
-  
+
       ```mysql
       EXPLAIN select col1 from t1 where col1='ac' order by col3;
       
       -- 当排序增加了col2之后，就没有了
       EXPLAIN select col1 from t1 where col1='ac' order by col2,col3;
       ```
-  
+
     - ##### Using temporary：使用了临时表保存中间结果，MySQL在对查询结果排序时使用临时表。常用于排序order by和分组查询group by
-  
+
       ```mysql
       EXPLAIN select col1 from t1 where col1 in('ac','ab','aa') GROUP BY col2;
       -- Using where; Using index; Using temporary; Using filesort
@@ -1760,47 +1754,47 @@ show variables like '%storage_engine%';
       -- Using where; Using index 
       -- 在执行计划里面有using filesort而且还有Using temporary的时候，特别需要注意
       ```
-  
+
     - ##### Using index：表示相应的select操作中使用了覆盖索引（Covering Index），避免访问了表的数据行，效率不错
-  
+
       ```mysql
       -- 如果同时出现using where，表明索引被用来执行索引键值的查找
       EXPLAIN select col2 from t1 where col1 = 'ab';
       -- 如果没有同时出现using where，表明索引用来读取数据而非执行查找动作
       EXPLAIN select col2 from t1;
       ```
-  
+
       ##### 覆盖索引：有两种理解方式
-  
+
       - 就是select的数据列只用从索引中就能够取得，不必读取数据行，MySQL可以利用索引返回select列表中的字段，而不必根据索引再次读取数据文件，即查询列要被所建的索引覆盖
-  
+
       - 索引是高效找到行的一个方法，但是一般数据库也能使用索引找到一个列的数据，因此它不必读取整个行。毕竟索引叶子节点存储了他们索引的数据，即可以通过读取索引得到想要的数据，就不需要读取行了。一个索引包含了满足查询结果的数据就是覆盖索引
-  
+
         **注意：**如果使用覆盖索引，要注意select列表中只取出需要的列，不可select *，因为如果将所有字段一起做索引会导致索引文件过大，查询性能下降；
-  
+
     - ##### Using where：使用了where过滤
-  
+
     - ##### Using join buffer：使用了连接缓存
-  
+
       ```mysql
       EXPLAIN select * from t1  JOIN t2  on t1.other_column = t2.other_column;
       
       -- 查看缓存大小
       show variables like '%join_buffer_size%';
       ```
-  
+
     - ##### Impossible where：where字句的值总是false，不能用来获取任何元组
-  
+
       ```mysql
       EXPLAIN select * from t1 where 1=2
       
       EXPLAIN select * from t1 where  t1.other_column ='kobe' and t1.other_column = 'james'
       ```
-  
+
   ##### SQL优化
-  
+
   - ##### 优化实战
-  
+
     ```mysql
     -- 实例表
     CREATE TABLE `staffs`(
@@ -1818,43 +1812,43 @@ show variables like '%storage_engine%';
      
     alter table staffs add index idx_staffs_nameAgePos(name,age,pos);
     ```
-  
+
     - ##### 尽量全值匹配
-  
+
       ```mysql
       -- 当建立了索引列后，能在where条件中使用索引的尽量所用。
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July' AND age = 25;
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July' AND age = 25 AND pos = 'dev';
       ```
-  
+
     - ##### 最佳左前缀法则
-  
+
       ```mysql
       -- 查询从索引的最左前列开始并且不跳过索引中的列
       EXPLAIN SELECT * FROM staffs WHERE  age = 25 AND pos = 'dev';-- 全表扫描
       EXPLAIN SELECT * FROM staffs WHERE pos = 'dev';-- 全表扫描
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
       ```
-  
+
     - ##### 不在索引列上做任何操作
-  
+
       ```mysql
       -- 不在索引列上做任何操作（计算、函数、（自动或手动）类型转换），会导致索引失效而转向全表扫描
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
       
       EXPLAIN SELECT * FROM staffs WHERE left(NAME,4) = 'July';-- 全表扫描
       ```
-  
+
     - ##### 范围查找放最后
-  
+
       ```mysql
       -- 中间有范围查询会导致后面的索引列全部失效,故需要将范围查找放最后（不是sql中放到最后，而是将范围的该字段索引顺序放到最后）
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July'  and age >22 and pos='manager';
       ```
-  
+
     - ##### 覆盖索引尽量用
-  
+
       ```mysql
       -- 尽量使用覆盖索引（只访问索引的查询（索引列和查询列一致）），减少select *
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July'  and age =22 and pos='manager';
@@ -1865,9 +1859,9 @@ show variables like '%storage_engine%';
       
       EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME = 'July'  and age >22 and pos='manager';
       ```
-  
+
     - ##### “不等于”要慎用
-  
+
       ```mysql
       -- mysql在使用不等于时，无法使用索引，会导致全表扫描
       EXPLAIN SELECT * FROM staffs WHERE NAME = 'July';
@@ -1880,9 +1874,9 @@ show variables like '%storage_engine%';
       
       EXPLAIN SELECT name,age,pos FROM staffs WHERE NAME <> 'July';
       ```
-  
+
     - ##### Null/Not有影响
-  
+
       ```mysql
       -- 自定义为Not Null
       EXPLAIN select * from staffs where name is null;
@@ -1896,9 +1890,9 @@ show variables like '%storage_engine%';
       -- 在字段为null或者不定义的情况下，使用is not null会导致索引失效
       -- 解决方式：覆盖索引
       ```
-  
+
     - ##### Like查询要当心
-  
+
       ```mysql
       -- like以通配符开头（'%abc...'），mysql索引失效会变成全表扫描的操作
       EXPLAIN select * from staffs where name ='july';
@@ -1911,18 +1905,18 @@ show variables like '%storage_engine%';
       -- 解决方式：覆盖索引
       EXPLAIN select name,age,pos from staffs where name like '%july%';
       ```
-  
+
     - ##### 字符类型加引号
-  
+
       ```mysql
       -- 字符串不加单引号索引失效
       EXPLAIN select * from staffs where name = 917;
       -- 解决方式：加单引号
       EXPLAIN select * from staffs where name = '917'；
       ```
-  
+
     - ##### OR改UNION效率高
-  
+
       ```mysql
       EXPLAIN
       select * from staffs where name='July' or name = 'z3';
@@ -1935,17 +1929,17 @@ show variables like '%storage_engine%';
       -- 解决方式：覆盖索引
       EXPLAIN select name,age from staffs where name='July' or name = 'z3';
       ```
-  
+
   - ##### 批量导入
-  
+
     - ##### insert语句优化
-  
+
       - 提交前关闭自动提交
       - 尽量使用批量insert语句
       - 可以使用MyISAM存储引擎
-  
+
     - ##### LOAD DATA INFLIE
-  
+
       ```mysql
       -- 使用load data infile比一般的insert语句快20倍
       -- 将表product_info中的数据导出到文件product.txt中
@@ -1963,6 +1957,5 @@ show variables like '%storage_engine%';
       
       -- secure_file_priv 没有值时，表示不限制mysqld在任意目录的导入导出。
       ```
-  
-      
+
 
