@@ -294,7 +294,7 @@ systemctl status mysqld
 # 查看默认密码
 vi /var/log/mysqld.log
 # A temporary password is generated for root@localhost: td.d=o&#l61C
-# 登录MySQL
+# 登录MySQL  jU&8ifp:>ywM
 mysql -uroot -p 
 ```
 
